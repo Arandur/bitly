@@ -117,6 +117,10 @@ pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
         })
 }
 
+pub fn get_stats(conn: &PgConnection, name: &str) -> Option<Stats> {
+    unimplemented!()
+}
+
 fn random_name() -> String {
     thread_rng().sample_iter(Alphanumeric).take(7).collect()
 }

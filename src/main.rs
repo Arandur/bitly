@@ -1,5 +1,6 @@
 extern crate actix_web; 
 extern crate actix_rt;
+extern crate chrono;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
@@ -72,7 +73,7 @@ async fn create(request: web::Json<CreateRequest>) -> Result<web::Json<CreateRes
 }
 
 #[get("/{name}")]
-async fn load(name: web::Path<String>) -> impl Responder {
+async fn load(name: web::Path<String>) -> HttpResponse {
     let conn = bitly::establish_connection();
 
     if let Some(target) = bitly::find_target(&conn, &name) {
@@ -81,6 +82,17 @@ async fn load(name: web::Path<String>) -> impl Responder {
             .finish()
     } else {
         HttpResponse::NotFound().finish()
+    }
+}
+
+#[get("/stats/{name}")]
+async fn stats(name: web::Path<String>) -> impl Responder {
+    let conn = bitly::establish_connection();
+
+    if let Some(stats) = bitly::get_stats(&conn, &name) {
+        Ok(web::Json(stats))
+    } else {
+        Err(HttpResponse::NotFound().finish())
     }
 }
 
