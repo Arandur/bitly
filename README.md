@@ -71,3 +71,11 @@ Database errors are non-recoverable, and do not propagate up to the server layer
 the thread. I could do some work to turn those into 500's, and that might be a good future
 extension, but those types of errors should be rare enough (now that development is done) that I
 would consider it a low priority.
+
+# Testing
+
+You will notice that there are no tests written for this app. I ran into several difficulties
+attempting to write an automated test suite, mostly centered around the fact that Diesel makes it
+very difficult to write backend-agnostic code -- my plan was to create an in-memory sqlite database
+for each transaction, but I ran out of time. I did extensively test the server from the command line
+using HTTPie; that will unfortunately have to suffice for now.
