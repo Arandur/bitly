@@ -25,6 +25,7 @@ use rand::distributions::Alphanumeric;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
+use std::net::IpAddr;
 
 use models::*;
 
@@ -109,7 +110,7 @@ pub fn create_custom_shortlink(conn: &PgConnection, name: &str, target: &str) ->
     }).expect("Database error")
 }
 
-pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
+pub fn find_target(conn: &PgConnection, name: &str, ip_addr: Option<IpAddr>) -> Option<String> {
     use schema::*;
 
     let target = canonical_shortlinks::table
@@ -128,7 +129,7 @@ pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
         });
 
     if target.is_some() {
-        increment_visit(conn, name);
+        increment_visit(conn, name, ip_addr);
     }
 
     target
@@ -139,7 +140,8 @@ pub struct AggregateStat {
     name: String,
     created_on: DateTime<Utc>,
     total_visits: i64,
-    visits_per_day: HashMap<NaiveDate, i64>
+    visits_per_day: HashMap<NaiveDate, i64>,
+    unique_visitors: i64
 }
 
 pub fn get_stats(conn: &PgConnection, name: &str) -> Option<AggregateStat> {
@@ -172,11 +174,28 @@ pub fn get_stats(conn: &PgConnection, name: &str) -> Option<AggregateStat> {
             .map(|ag| (ag.visit_date.date(), ag.visit_count))
             .collect();
 
+    #[derive(QueryableByName)]
+    struct Count {
+        #[sql_type = "BigInt"]
+        count: i64
+    }
+
+    let unique_visitors =
+        diesel::sql_query(
+            "SELECT COUNT(*) FROM
+                (SELECT DISTINCT ip_addr FROM visits
+                 WHERE name = $1) AS temp")
+            .bind::<Text, _>(name)
+            .get_result::<Count>(conn)
+            .expect("Database error").count;
+
+
     Some(AggregateStat {
         name: name.to_string(),
         created_on: created_on,
         total_visits: total_visits,
-        visits_per_day: visits_per_day
+        visits_per_day: visits_per_day,
+        unique_visitors: unique_visitors
     })
 }
 
@@ -184,11 +203,13 @@ fn random_name() -> String {
     thread_rng().sample_iter(Alphanumeric).take(7).collect()
 }
 
-fn increment_visit(conn: &PgConnection, name: &str) {
+fn increment_visit(conn: &PgConnection, name: &str, ip_addr: Option<IpAddr>) {
     use schema::visits;
 
+    let ip_addr = ip_addr.map(|addr| format!("{}", addr));
+
     diesel::insert_into(visits::table)
-        .values(visits::name.eq(name))
+        .values((visits::name.eq(name), visits::ip_addr.eq(ip_addr)))
         .execute(conn)
         .unwrap();
 }

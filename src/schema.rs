@@ -24,6 +24,7 @@ table! {
         id -> Int4,
         name -> Nullable<Varchar>,
         visit -> Timestamptz,
+        ip_addr -> Nullable<Varchar>,
     }
 }
 

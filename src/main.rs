@@ -7,7 +7,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate diesel_migrations;
 
-use actix_web::{get, post, web, App, HttpServer, HttpResponse, ResponseError, Responder};
+use actix_web::{get, post, web, App, HttpServer, HttpRequest, HttpResponse, ResponseError, Responder};
 use actix_web::http::{self, StatusCode};
 
 use diesel::pg::PgConnection;
@@ -82,10 +82,14 @@ async fn create(pool: web::Data<PgPool>, request: web::Json<CreateRequest>) -> i
 }
 
 #[get("/{name}")]
-async fn load(pool: web::Data<PgPool>, name: web::Path<String>) -> HttpResponse {
+async fn load(
+    req: HttpRequest, pool: web::Data<PgPool>, 
+    name: web::Path<String>) -> HttpResponse {
     let conn = pool.get().expect("Could not connect to database");
 
-    if let Some(target) = bitly::find_target(&conn, &name) {
+    let peer_addr = req.peer_addr().map(|addr| addr.ip());
+
+    if let Some(target) = bitly::find_target(&conn, &name, peer_addr) {
         HttpResponse::SeeOther()
             .header(http::header::LOCATION, target)
             .finish()
@@ -105,7 +109,7 @@ async fn stats(pool: web::Data<PgPool>, name: web::Path<String>) -> impl Respond
     }
 }
 
-embed_migrations!("migrations/postgres");
+embed_migrations!();
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {

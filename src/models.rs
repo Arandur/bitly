@@ -3,6 +3,7 @@ use chrono::NaiveDateTime;
 use diesel::sql_types::*;
 
 use std::borrow::Cow;
+use std::net::SocketAddr;
 
 use super::schema::*;
 
@@ -36,7 +37,8 @@ pub struct Stat {
 pub struct Visit {
     id: i32,
     name: String,
-    visit: NaiveDateTime
+    visit: NaiveDateTime,
+    ip_addr: Option<SocketAddr>
 }
 
 #[derive(QueryableByName, Debug, PartialEq, Eq)]

@@ -6,7 +6,8 @@ CREATE TABLE stats (
 CREATE TABLE visits (
   id SERIAL PRIMARY KEY,
   name VARCHAR(128) references stats(name),
-  visit TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  visit TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  ip_addr VARCHAR(128)
 );
 
 CREATE FUNCTION create_stat() RETURNS trigger AS $create_stat$

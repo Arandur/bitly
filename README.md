@@ -28,6 +28,8 @@ with the following attributes:
 - total_visits: The total number of visits via the shortlink since creation
 - visits_per_day: The total number of visits per day (UTC), as an object with keys as dates and
   values as integers.
+- unique_visitors: The number of unique IP addresses which have accessed the shortlink since
+  creation
 
 There is also the third, trivial endpoint; sending a GET request to /{name} will redirect to the
 associated target, if there is one.
@@ -79,3 +81,7 @@ attempting to write an automated test suite, mostly centered around the fact tha
 very difficult to write backend-agnostic code -- my plan was to create an in-memory sqlite database
 for each transaction, but I ran out of time. I did extensively test the server from the command line
 using HTTPie; that will unfortunately have to suffice for now.
+
+# Extra credit
+
+The number of unique visitors is included in the /stats endpoint.
