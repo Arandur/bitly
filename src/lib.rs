@@ -10,11 +10,12 @@ pub mod models;
 
 use chrono::{DateTime, NaiveDate, Utc};
 
+use diesel::Connection;
 use diesel::prelude::*;
-use diesel::pg::PgConnection;
 use diesel::sql_types::*;
 use diesel::result::Error::DatabaseError;
 use diesel::result::DatabaseErrorKind;
+use diesel::r2d2::{Pool, ConnectionManager};
 
 use dotenv::dotenv;
 
@@ -31,14 +32,17 @@ sql_function! {
     fn get_stat(name: Text) -> (Timestamp, Bigint);
 }
 
-pub fn establish_connection() -> PgConnection {
+pub fn establish_connection() -> Pool<ConnectionManager<PgConnection>> {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
 
-    PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
+    let manager = ConnectionManager::<PgConnection>::new(&database_url);
+
+    Pool::builder()
+        .build(manager)
+        .expect("Error connecting to database")
 }
 
 pub fn create_shortlink(conn: &PgConnection, target: &str) -> Shortlink {

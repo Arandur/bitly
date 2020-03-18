@@ -7,8 +7,15 @@ extern crate serde_json;
 
 use actix_web::{get, post, web, App, HttpServer, HttpResponse, ResponseError, Responder};
 use actix_web::http::{self, StatusCode};
+
+use diesel::pg::PgConnection;
+use diesel::r2d2::{Pool, ConnectionManager};
+
 use serde::{Serialize, Deserialize};
+
 use std::fmt::{Display, Formatter, Result as FmtResult};
+
+type PgPool = Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Deserialize)]
 struct CreateRequest {
@@ -52,8 +59,8 @@ impl ResponseError for CreateError {
 }
 
 #[post("/create")]
-async fn create(request: web::Json<CreateRequest>) -> Result<web::Json<CreateResponse>, CreateError> {
-    let conn = bitly::establish_connection();
+async fn create(pool: web::Data<PgPool>, request: web::Json<CreateRequest>) -> Result<web::Json<CreateResponse>, CreateError> {
+    let conn = pool.get().expect("Could not connect to database");
 
     let result = match &request.name {
         Some(name) => bitly::create_custom_shortlink(&conn, &name, &request.target),
@@ -73,8 +80,8 @@ async fn create(request: web::Json<CreateRequest>) -> Result<web::Json<CreateRes
 }
 
 #[get("/{name}")]
-async fn load(name: web::Path<String>) -> HttpResponse {
-    let conn = bitly::establish_connection();
+async fn load(pool: web::Data<PgPool>, name: web::Path<String>) -> HttpResponse {
+    let conn = pool.get().expect("Could not connect to database");
 
     if let Some(target) = bitly::find_target(&conn, &name) {
         HttpResponse::SeeOther()
@@ -86,8 +93,8 @@ async fn load(name: web::Path<String>) -> HttpResponse {
 }
 
 #[get("/stats/{name}")]
-async fn stats(name: web::Path<String>) -> impl Responder {
-    let conn = bitly::establish_connection();
+async fn stats(pool: web::Data<PgPool>, name: web::Path<String>) -> impl Responder {
+    let conn = pool.get().expect("Could not connect to database");
 
     if let Some(stats) = bitly::get_stats(&conn, &name) {
         Ok(web::Json(stats))
@@ -100,6 +107,7 @@ async fn stats(name: web::Path<String>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
+            .data(bitly::establish_connection())
             .service(create)
             .service(load)
             .service(stats)
