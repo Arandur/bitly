@@ -102,6 +102,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(create)
             .service(load)
+            .service(stats)
     })
     .bind("127.0.0.1:8080")?
     .run()

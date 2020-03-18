@@ -24,6 +24,7 @@ pub struct Shortlink {
     pub target: String
 }
 
+// TODO: Times should be in UTC
 #[derive(Queryable, Debug, PartialEq, Eq, Serialize)]
 pub struct Stats {
     name: String,
