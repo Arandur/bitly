@@ -16,12 +16,22 @@ table! {
     stats (name) {
         name -> Varchar,
         created_on -> Timestamptz,
-        visits -> Int4,
     }
 }
+
+table! {
+    visits (id) {
+        id -> Int4,
+        name -> Nullable<Varchar>,
+        visit -> Timestamptz,
+    }
+}
+
+joinable!(visits -> stats (name));
 
 allow_tables_to_appear_in_same_query!(
     canonical_shortlinks,
     custom_shortlinks,
     stats,
+    visits,
 );

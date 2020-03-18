@@ -43,7 +43,7 @@ impl ResponseError for CreateError {
         match self {
             CreateError::CustomShortlinkAlreadyExists(shortlink) =>
                 HttpResponse::build(StatusCode::CONFLICT).json(json!({
-                    "code": 309,
+                    "code": 409,
                     "msg": format!("Custom shortlink already exists: \"{}\"", shortlink),
                     "name": shortlink.to_string()
                 }))

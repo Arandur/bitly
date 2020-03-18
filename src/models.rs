@@ -1,5 +1,7 @@
 use chrono::NaiveDateTime;
 
+use diesel::sql_types::*;
+
 use std::borrow::Cow;
 
 use super::schema::*;
@@ -24,11 +26,23 @@ pub struct Shortlink {
     pub target: String
 }
 
-// TODO: Times should be in UTC
-#[derive(Queryable, Debug, PartialEq, Eq, Serialize)]
-pub struct Stats {
+#[derive(Queryable, Debug, PartialEq, Eq)]
+pub struct Stat {
     name: String,
-    created_on: NaiveDateTime,
-    visits: i32
-    // TODO: visits per day
+    created_on: NaiveDateTime
+}
+
+#[derive(Queryable, Debug, PartialEq, Eq)]
+pub struct Visit {
+    id: i32,
+    name: String,
+    visit: NaiveDateTime
+}
+
+#[derive(QueryableByName, Debug, PartialEq, Eq)]
+pub struct AggregateVisits {
+    #[sql_type = "Timestamp"]
+    pub visit_date: NaiveDateTime,
+    #[sql_type = "Bigint"]
+    pub visit_count: i64
 }

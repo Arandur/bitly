@@ -8,8 +8,11 @@ extern crate serde;
 pub mod schema;
 pub mod models;
 
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+
 use diesel::prelude::*;
 use diesel::pg::PgConnection;
+use diesel::sql_types::*;
 use diesel::result::Error::DatabaseError;
 use diesel::result::DatabaseErrorKind;
 
@@ -19,9 +22,14 @@ use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::env;
 
 use models::*;
+
+sql_function! {
+    fn get_stat(name: Text) -> (Timestamp, Bigint);
+}
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -71,32 +79,29 @@ pub fn create_custom_shortlink(conn: &PgConnection, name: &str, target: &str) ->
     conn.transaction(move || {
         // Check canonical AND custom shortlinks to see if this name is in use
 
-        // NOTE: This would be more convenient as a UNION query, but I couldn't
-        // fiure out how to get Diesel to play nicely with that. Further
-        // research is required.
-
-        match canonical_shortlinks::table
-            .find(name)
-            .count()
-            .get_result(conn) {
-            Ok(0) => (),
-            Ok(_) => return Ok(None),
-            Err(e) => return Err(e)
+        #[derive(QueryableByName)]
+        struct Count {
+            #[sql_type = "BigInt"]
+            count: i64
         }
 
-        match custom_shortlinks::table
-            .find(name)
-            .count()
-            .get_result(conn) {
-            Ok(0) => (),
-            Ok(_) => return Ok(None),
-            Err(e) => return Err(e)
-        }
+        let count: i64 = diesel::sql_query(
+            "SELECT COUNT(*) FROM 
+                (SELECT * FROM canonical_shortlinks UNION
+                 SELECT * FROM custom_shortlinks) S
+             WHERE S.name = $1")
+            .bind::<Text, _>(name)
+            .get_result::<Count>(conn)
+            .expect("Database error").count;
 
-        diesel::insert_into(custom_shortlinks::table)
-            .values(&entry)
-            .get_result(conn)
-            .optional()
+        if count == 0 {
+            diesel::insert_into(custom_shortlinks::table)
+                .values(&entry)
+                .get_result(conn)
+                .optional()
+        } else {
+            Ok(None)
+        }
     }).expect("Database error")
 }
 
@@ -125,14 +130,50 @@ pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
     target
 }
 
-pub fn get_stats(conn: &PgConnection, name: &str) -> Option<Stats> {
+#[derive(Serialize)]
+pub struct AggregateStat {
+    name: String,
+    created_on: DateTime<Utc>,
+    total_visits: i64,
+    visits_per_day: HashMap<NaiveDate, i64>
+}
+
+pub fn get_stats(conn: &PgConnection, name: &str) -> Option<AggregateStat> {
     use schema::stats;
 
-    stats::table
+    let created_on = stats::table.select(stats::created_on)
         .find(name)
         .get_result(conn)
         .optional()
-        .expect("Database error")
+        .unwrap();
+
+    if created_on.is_none() {
+        return None;
+    }
+
+    let created_on = created_on.unwrap();
+
+    // Wish I could iterate over this instead of wastefully pulling it into 
+    // a vec, but that's the API I'm given...
+    let visits: Vec<AggregateVisits> = 
+        diesel::sql_query("SELECT * FROM get_stat($1);")
+            .bind::<Text, _>(name)
+            .get_results(conn)
+            .unwrap();
+
+    let total_visits = visits.iter().map(|ag| ag.visit_count).sum();
+
+    let visits_per_day: HashMap<NaiveDate, i64> = 
+        visits.into_iter()
+            .map(|ag| (ag.visit_date.date(), ag.visit_count))
+            .collect();
+
+    Some(AggregateStat {
+        name: name.to_string(),
+        created_on: created_on,
+        total_visits: total_visits,
+        visits_per_day: visits_per_day
+    })
 }
 
 fn random_name() -> String {
@@ -140,11 +181,10 @@ fn random_name() -> String {
 }
 
 fn increment_visit(conn: &PgConnection, name: &str) {
-    use schema::stats;
+    use schema::visits;
 
-    diesel::update(stats::table)
-        .filter(stats::name.eq(name))
-        .set(stats::visits.eq(stats::visits + 1))
-        .get_results::<Stats>(conn)
+    diesel::insert_into(visits::table)
+        .values(visits::name.eq(name))
+        .execute(conn)
         .unwrap();
 }
