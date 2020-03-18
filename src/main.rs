@@ -31,7 +31,7 @@ struct CreateResponse {
 
 #[derive(Debug, Serialize)]
 enum CreateError {
-    CustomShortlinkAlreadyExists(String)
+    ShortlinkAlreadyExists(String)
 }
 
 impl Display for CreateError {
@@ -48,18 +48,18 @@ impl ResponseError for CreateError {
 
     fn error_response(&self) -> HttpResponse {
         match self {
-            CreateError::CustomShortlinkAlreadyExists(shortlink) =>
+            CreateError::ShortlinkAlreadyExists(name) =>
                 HttpResponse::build(StatusCode::CONFLICT).json(json!({
                     "code": 409,
-                    "msg": format!("Custom shortlink already exists: \"{}\"", shortlink),
-                    "name": shortlink.to_string()
+                    "msg": format!("Shortlink already exists: \"{}\"", name),
+                    "name": name.to_string()
                 }))
         }
     }
 }
 
 #[post("/create")]
-async fn create(pool: web::Data<PgPool>, request: web::Json<CreateRequest>) -> Result<web::Json<CreateResponse>, CreateError> {
+async fn create(pool: web::Data<PgPool>, request: web::Json<CreateRequest>) -> impl Responder {
     let conn = pool.get().expect("Could not connect to database");
 
     let result = match &request.name {
@@ -75,7 +75,7 @@ async fn create(pool: web::Data<PgPool>, request: web::Json<CreateRequest>) -> R
 
         Ok(web::Json(response))
     } else {
-        Err(CreateError::CustomShortlinkAlreadyExists(request.name.clone().unwrap()))
+        Err(CreateError::ShortlinkAlreadyExists(request.name.clone().unwrap()))
     }
 }
 
