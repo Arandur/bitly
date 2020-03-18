@@ -42,8 +42,16 @@ pub fn create_shortlink<'a>(conn: &PgConnection, target: &'a str) -> Shortlink<'
     loop {
         match diesel::insert_into(shortlinks::table)
             .values(&entry)
-            .get_result(conn) {
-            Ok(shortlink) => return shortlink,
+            .on_conflict(shortlinks::target)
+            .do_nothing()
+            .get_result(conn)
+            .optional() {
+            Ok(Some(shortlink)) => return shortlink,
+            Ok(None) => {
+                return shortlinks::table.filter(shortlinks::target.eq(entry.target))
+                    .first(conn)
+                    .expect("Database error");
+            },
             Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => entry.shortlink = random_shortlink(),
             Err(e) => panic!("Database error: {}", e)
         }
