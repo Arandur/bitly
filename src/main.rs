@@ -61,8 +61,8 @@ async fn create(request: web::Json<CreateRequest>) -> Result<web::Json<CreateRes
 
     if let Some(result) = result {
         let response = CreateResponse {
-            name: result.name.into_owned(),
-            target: result.target.into_owned()
+            name: result.name,
+            target: result.target
         };
 
         Ok(web::Json(response))
@@ -71,11 +71,25 @@ async fn create(request: web::Json<CreateRequest>) -> Result<web::Json<CreateRes
     }
 }
 
+#[get("/{name}")]
+async fn load(name: web::Path<String>) -> impl Responder {
+    let conn = bitly::establish_connection();
+
+    if let Some(target) = bitly::find_target(&conn, &name) {
+        HttpResponse::SeeOther()
+            .header(http::header::LOCATION, target)
+            .finish()
+    } else {
+        HttpResponse::NotFound().finish()
+    }
+}
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(create)
+            .service(load)
     })
     .bind("127.0.0.1:8080")?
     .run()

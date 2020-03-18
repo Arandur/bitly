@@ -31,7 +31,7 @@ pub fn establish_connection() -> PgConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
-pub fn create_shortlink<'a>(conn: &PgConnection, target: &'a str) -> Shortlink<'a> {
+pub fn create_shortlink(conn: &PgConnection, target: &str) -> Shortlink {
     use schema::canonical_shortlinks;
 
     let mut entry = CanonicalShortlink {
@@ -58,7 +58,7 @@ pub fn create_shortlink<'a>(conn: &PgConnection, target: &'a str) -> Shortlink<'
     }
 }
 
-pub fn create_custom_shortlink<'a>(conn: &PgConnection, name: &'a str, target: &'a str) -> Option<Shortlink<'a>> {
+pub fn create_custom_shortlink(conn: &PgConnection, name: &str, target: &str) -> Option<Shortlink> {
     use schema::*;
 
     let entry = CustomShortlink {
@@ -99,7 +99,22 @@ pub fn create_custom_shortlink<'a>(conn: &PgConnection, name: &'a str, target: &
 }
 
 pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
-    unimplemented!();
+    use schema::*;
+
+    canonical_shortlinks::table
+        .find(name)
+        .get_result(conn)
+        .optional()
+        .expect("Database error")
+        .map(|entry: Shortlink| entry.target)
+        .or_else(|| {
+            custom_shortlinks::table
+                .find(name)
+                .get_result(conn)
+                .optional()
+                .expect("Database error")
+                .map(|entry: Shortlink| entry.target)
+        })
 }
 
 fn random_name() -> String {

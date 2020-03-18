@@ -19,9 +19,9 @@ pub struct CustomShortlink<'a> {
 }
 
 #[derive(Queryable, QueryableByName, Debug, PartialEq, Eq)]
-pub struct Shortlink<'a> {
+pub struct Shortlink {
     #[sql_type = "Text"]
-    pub name: Cow<'a, str>,
+    pub name: String,
     #[sql_type = "Text"]
-    pub target: Cow<'a, str>
+    pub target: String
 }
