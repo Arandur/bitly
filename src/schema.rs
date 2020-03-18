@@ -15,7 +15,7 @@ table! {
 table! {
     stats (name) {
         name -> Varchar,
-        created_on -> Timestamptz,
+        created_on -> Timestamp,
         visits -> Int4,
     }
 }

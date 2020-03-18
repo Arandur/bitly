@@ -2,6 +2,8 @@
 extern crate diesel;
 extern crate dotenv;
 extern crate rand;
+#[macro_use]
+extern crate serde;
 
 pub mod schema;
 pub mod models;
@@ -101,7 +103,7 @@ pub fn create_custom_shortlink(conn: &PgConnection, name: &str, target: &str) ->
 pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
     use schema::*;
 
-    canonical_shortlinks::table
+    let target = canonical_shortlinks::table
         .find(name)
         .get_result(conn)
         .optional()
@@ -114,13 +116,35 @@ pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
                 .optional()
                 .expect("Database error")
                 .map(|entry: Shortlink| entry.target)
-        })
+        });
+
+    if target.is_some() {
+        increment_visit(conn, name);
+    }
+
+    target
 }
 
 pub fn get_stats(conn: &PgConnection, name: &str) -> Option<Stats> {
-    unimplemented!()
+    use schema::stats;
+
+    stats::table
+        .find(name)
+        .get_result(conn)
+        .optional()
+        .expect("Database error")
 }
 
 fn random_name() -> String {
     thread_rng().sample_iter(Alphanumeric).take(7).collect()
+}
+
+fn increment_visit(conn: &PgConnection, name: &str) {
+    use schema::stats;
+
+    diesel::update(stats::table)
+        .filter(stats::name.eq(name))
+        .set(stats::visits.eq(stats::visits + 1))
+        .get_results::<Stats>(conn)
+        .unwrap();
 }

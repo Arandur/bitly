@@ -1,6 +1,4 @@
-use chrono::{DateTime, Utc};
-
-use diesel::sql_types::Text;
+use chrono::NaiveDateTime;
 
 use std::borrow::Cow;
 
@@ -22,15 +20,14 @@ pub struct CustomShortlink<'a> {
 
 #[derive(Queryable, Debug, PartialEq, Eq)]
 pub struct Shortlink {
-    #[sql_type = "Text"]
     pub name: String,
-    #[sql_type = "Text"]
     pub target: String
 }
 
-#[derive(Insertable, Queryable, Debug, PartialEq, Eq)]
+#[derive(Queryable, Debug, PartialEq, Eq, Serialize)]
 pub struct Stats {
-    created_on: DateTime<Utc>,
+    name: String,
+    created_on: NaiveDateTime,
     visits: i32
     // TODO: visits per day
 }
