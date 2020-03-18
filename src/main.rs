@@ -4,6 +4,8 @@ extern crate chrono;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
+extern crate diesel_migrations;
 
 use actix_web::{get, post, web, App, HttpServer, HttpResponse, ResponseError, Responder};
 use actix_web::http::{self, StatusCode};
@@ -103,11 +105,19 @@ async fn stats(pool: web::Data<PgPool>, name: web::Path<String>) -> impl Respond
     }
 }
 
+embed_migrations!("migrations/postgres");
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    let pool = bitly::establish_connection();
+
+    let connection = pool.get().expect("Could not connect to database");
+
+    embedded_migrations::run(&connection).expect("Could not run migrations");
+
+    HttpServer::new(move || {
         App::new()
-            .data(bitly::establish_connection())
+            .data(pool.clone())
             .service(create)
             .service(load)
             .service(stats)
