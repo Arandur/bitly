@@ -1,37 +1,74 @@
-extern crate actix_web; extern crate actix_rt;
+extern crate actix_web; 
+extern crate actix_rt;
 extern crate serde;
+#[macro_use]
+extern crate serde_json;
 
-use actix_web::{post, web, App, HttpServer};
+use actix_web::{get, post, web, App, HttpServer, HttpResponse, ResponseError, Responder};
+use actix_web::http::{self, StatusCode};
 use serde::{Serialize, Deserialize};
-
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Deserialize)]
 struct CreateRequest {
-    shortlink: Option<String>,
+    name: Option<String>,
     target: String
 }
 
 #[derive(Serialize)]
 struct CreateResponse {
-    shortlink: String,
+    name: String,
     target: String
 }
 
+#[derive(Debug, Serialize)]
+enum CreateError {
+    CustomShortlinkAlreadyExists(String)
+}
+
+impl Display for CreateError {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        let err_json = serde_json::to_string(self).unwrap();
+        write!(f, "{}", err_json)
+    }
+}
+
+impl ResponseError for CreateError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::CONFLICT
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            CreateError::CustomShortlinkAlreadyExists(shortlink) =>
+                HttpResponse::build(StatusCode::CONFLICT).json(json!({
+                    "code": 309,
+                    "msg": format!("Custom shortlink already exists: \"{}\"", shortlink),
+                    "name": shortlink.to_string()
+                }))
+        }
+    }
+}
+
 #[post("/create")]
-async fn create(request: web::Json<CreateRequest>) -> actix_web::Result<web::Json<CreateResponse>> {
+async fn create(request: web::Json<CreateRequest>) -> Result<web::Json<CreateResponse>, CreateError> {
     let conn = bitly::establish_connection();
 
-    let result = match &request.shortlink {
-        Some(shortlink) => unimplemented!(),
-        None => bitly::create_shortlink(&conn, &request.target)
+    let result = match &request.name {
+        Some(name) => bitly::create_custom_shortlink(&conn, &name, &request.target),
+        None => Some(bitly::create_shortlink(&conn, &request.target))
     };
 
-    let response = CreateResponse {
-        shortlink: result.shortlink,
-        target: result.target.into_owned()
-    };
+    if let Some(result) = result {
+        let response = CreateResponse {
+            name: result.name.into_owned(),
+            target: result.target.into_owned()
+        };
 
-    Ok(web::Json(response))
+        Ok(web::Json(response))
+    } else {
+        Err(CreateError::CustomShortlinkAlreadyExists(request.name.clone().unwrap()))
+    }
 }
 
 #[actix_rt::main]

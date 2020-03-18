@@ -19,7 +19,7 @@ use rand::distributions::Alphanumeric;
 use std::borrow::Cow;
 use std::env;
 
-use models::Shortlink;
+use models::*;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -32,32 +32,76 @@ pub fn establish_connection() -> PgConnection {
 }
 
 pub fn create_shortlink<'a>(conn: &PgConnection, target: &'a str) -> Shortlink<'a> {
-    use schema::shortlinks;
+    use schema::canonical_shortlinks;
 
-    let mut entry = Shortlink {
-        shortlink: random_shortlink(),
+    let mut entry = CanonicalShortlink {
+        name: random_name(),
         target: Cow::from(target)
     };
 
     loop {
-        match diesel::insert_into(shortlinks::table)
+        match diesel::insert_into(canonical_shortlinks::table)
             .values(&entry)
-            .on_conflict(shortlinks::target)
+            .on_conflict(canonical_shortlinks::target)
             .do_nothing()
             .get_result(conn)
             .optional() {
             Ok(Some(shortlink)) => return shortlink,
             Ok(None) => {
-                return shortlinks::table.filter(shortlinks::target.eq(entry.target))
+                return canonical_shortlinks::table.filter(canonical_shortlinks::target.eq(entry.target))
                     .first(conn)
                     .expect("Database error");
             },
-            Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => entry.shortlink = random_shortlink(),
+            Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => entry.name = random_name(),
             Err(e) => panic!("Database error: {}", e)
         }
     }
 }
 
-fn random_shortlink() -> String {
+pub fn create_custom_shortlink<'a>(conn: &PgConnection, name: &'a str, target: &'a str) -> Option<Shortlink<'a>> {
+    use schema::*;
+
+    let entry = CustomShortlink {
+        name: Cow::from(name),
+        target: Cow::from(target)
+    };
+
+    conn.transaction(move || {
+        // Check canonical AND custom shortlinks to see if this name is in use
+
+        // NOTE: This would be more convenient as a UNION query, but I couldn't
+        // fiure out how to get Diesel to play nicely with that. Further
+        // research is required.
+
+        match canonical_shortlinks::table
+            .find(name)
+            .count()
+            .get_result(conn) {
+            Ok(0) => (),
+            Ok(_) => return Ok(None),
+            Err(e) => return Err(e)
+        }
+
+        match custom_shortlinks::table
+            .find(name)
+            .count()
+            .get_result(conn) {
+            Ok(0) => (),
+            Ok(_) => return Ok(None),
+            Err(e) => return Err(e)
+        }
+
+        diesel::insert_into(custom_shortlinks::table)
+            .values(&entry)
+            .get_result(conn)
+            .optional()
+    }).expect("Database error")
+}
+
+pub fn find_target(conn: &PgConnection, name: &str) -> Option<String> {
+    unimplemented!();
+}
+
+fn random_name() -> String {
     thread_rng().sample_iter(Alphanumeric).take(7).collect()
 }
