@@ -16,6 +16,7 @@ use dotenv::dotenv;
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 
+use std::borrow::Cow;
 use std::env;
 
 use models::Shortlink;
@@ -30,13 +31,12 @@ pub fn establish_connection() -> PgConnection {
         .expect(&format!("Error connecting to {}", database_url))
 }
 
-pub fn create_shortlink(conn: &PgConnection, target: &str) -> Shortlink {
+pub fn create_shortlink<'a>(conn: &PgConnection, target: &'a str) -> Shortlink<'a> {
     use schema::shortlinks;
 
-    // This seems like an unnecessary clone... does diesel support Cow in Queryable types?
     let mut entry = Shortlink {
         shortlink: random_shortlink(),
-        target: target.to_string()
+        target: Cow::from(target)
     };
 
     loop {

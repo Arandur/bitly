@@ -28,7 +28,7 @@ async fn create(request: web::Json<CreateRequest>) -> actix_web::Result<web::Jso
 
     let response = CreateResponse {
         shortlink: result.shortlink,
-        target: result.target
+        target: result.target.into_owned()
     };
 
     Ok(web::Json(response))
