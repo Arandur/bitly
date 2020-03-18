@@ -8,7 +8,7 @@ extern crate serde;
 pub mod schema;
 pub mod models;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 
 use diesel::prelude::*;
 use diesel::pg::PgConnection;
