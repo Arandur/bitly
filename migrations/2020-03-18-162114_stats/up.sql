@@ -3,3 +3,15 @@ CREATE TABLE stats (
   created_on TIMESTAMP NOT NULL DEFAULT NOW(),
   visits INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE FUNCTION create_stat() RETURNS trigger AS $create_stat$
+BEGIN
+  INSERT INTO stats (name) VALUES (NEW.name);
+END;
+$create_stat$ LANGUAGE plpgsql;
+
+CREATE TRIGGER create_stat BEFORE INSERT ON canonical_shortlinks
+  FOR EACH ROW EXECUTE PROCEDURE create_stat();
+
+CREATE TRIGGER create_stat BEFORE INSERT ON custom_shortlinks
+  FOR EACH ROW EXECUTE PROCEDURE create_stat();
