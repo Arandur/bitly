@@ -9,7 +9,7 @@ use actix_web::{App, HttpServer};
 
 use bitly::server::*;
 
-embed_migrations!("migrations/postgres");
+embed_migrations!();
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {

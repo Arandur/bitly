@@ -48,3 +48,11 @@ pub struct AggregateVisits {
     #[sql_type = "Bigint"]
     pub visit_count: i64
 }
+
+#[derive(QueryableByName, Debug, PartialEq, Eq)]
+pub struct AggregateHosts {
+    #[sql_type = "Text"]
+    pub host: String,
+    #[sql_type = "Bigint"]
+    pub visit_count: i64
+}

@@ -4,6 +4,8 @@ use actix_web::http::StatusCode;
 
 use serde::{Serialize, Deserialize};
 
+use url::Url;
+
 use std::fmt::{self, Display, Formatter};
 
 use super::*;
@@ -22,7 +24,8 @@ pub struct CreateResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CreateError {
-    ShortlinkAlreadyExists(String)
+    ShortlinkAlreadyExists(String),
+    InvalidTarget(String)
 }
 
 impl Display for CreateError {
@@ -34,7 +37,10 @@ impl Display for CreateError {
 
 impl ResponseError for CreateError {
     fn status_code(&self) -> StatusCode {
-        StatusCode::CONFLICT
+        match self {
+            CreateError::ShortlinkAlreadyExists(_) => StatusCode::CONFLICT,
+            CreateError::InvalidTarget(_) => StatusCode::BAD_REQUEST
+        }
     }
 
     fn error_response(&self) -> HttpResponse {
@@ -44,6 +50,12 @@ impl ResponseError for CreateError {
                     "code": 409,
                     "msg": format!("Shortlink already exists: \"{}\"", name),
                     "name": name.to_string()
+                })),
+            CreateError::InvalidTarget(target) => 
+                HttpResponse::build(StatusCode::BAD_REQUEST).json(json!({
+                    "code": 400,
+                    "msg": format!("Invalid target: \"{}\"", target),
+                    "target": target.to_string()
                 }))
         }
     }
@@ -53,6 +65,12 @@ impl ResponseError for CreateError {
 async fn create(pool: web::Data<Pool>, request: web::Json<CreateRequest>) -> impl Responder {
     let conn = pool.get().expect("Could not connect to database");
 
+    // Check that the target is a valid URL
+    match Url::parse(&request.target) {
+        Ok(url) => url,
+        Err(_) => return Err(CreateError::InvalidTarget(request.target.clone()))
+    };
+
     let result = match &request.name {
         Some(name) => create_custom_shortlink(&conn, &name, &request.target),
         None => Some(create_shortlink(&conn, &request.target))
@@ -61,7 +79,7 @@ async fn create(pool: web::Data<Pool>, request: web::Json<CreateRequest>) -> imp
     if let Some(result) = result {
         let response = CreateResponse {
             name: result.name,
-            target: result.target
+            target: request.target.clone()
         };
 
         Ok(web::Json(response))

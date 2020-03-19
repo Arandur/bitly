@@ -15,15 +15,16 @@ table! {
 table! {
     stats (name) {
         name -> Varchar,
-        created_on -> Timestamp,
+        created_on -> Timestamptz,
     }
 }
 
 table! {
     visits (id) {
         id -> Int4,
-        name -> Varchar,
-        visit -> Timestamp,
+        name -> Nullable<Varchar>,
+        host -> Nullable<Varchar>,
+        visit -> Timestamptz,
         ip_addr -> Nullable<Varchar>,
     }
 }

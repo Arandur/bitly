@@ -250,7 +250,8 @@ fn increment_visit(conn: &Conn, name: &str, ip_addr: Option<IpAddr>) {
     let ip_addr = ip_addr.map(|addr| format!("{}", addr));
 
     diesel::insert_into(visits::table)
-        .values((visits::name.eq(name), visits::ip_addr.eq(ip_addr)))
+        .values((visits::name.eq(name), 
+                 visits::ip_addr.eq(ip_addr)))
         .execute(conn)
         .unwrap();
 }

@@ -6,6 +6,7 @@ CREATE TABLE stats (
 CREATE TABLE visits (
   id SERIAL PRIMARY KEY,
   name VARCHAR(128) references stats(name),
+  host VARCHAR(256),
   visit TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   ip_addr VARCHAR(128)
 );
@@ -33,5 +34,16 @@ BEGIN
     FROM visits WHERE visits.name = $1
     GROUP BY visit_date
     ORDER BY visit_date;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION get_global_stats() RETURNS TABLE (
+  host VARCHAR(256),
+  visit_count BIGINT) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT host, COUNT(id) as visit_count
+    FROM visits
+    GROUP BY host;
 END;
 $$ LANGUAGE plpgsql;
