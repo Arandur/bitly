@@ -19,3 +19,4 @@ rand = "0.7"
 
 [dev-dependencies]
 diesel = { version = "1.4", features = ["sqlite", "chrono", "r2d2"] }
+actix-http = "1.0"

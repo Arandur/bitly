@@ -76,11 +76,13 @@ would consider it a low priority.
 
 # Testing
 
-You will notice that there are no tests written for this app. I ran into several difficulties
-attempting to write an automated test suite, mostly centered around the fact that Diesel makes it
-very difficult to write backend-agnostic code -- my plan was to create an in-memory sqlite database
-for each transaction, but I ran out of time. I did extensively test the server from the command line
-using HTTPie; that will unfortunately have to suffice for now.
+I ran into several difficulties attempting to write an automated test suite, mostly centered around
+the fact that Diesel makes it very difficult to write backend-agnostic code. The tests I wrote at
+the bottom of src/lib.rs test the creation functionality; I tested the remainder of the
+functionality from the command line using HTTPie.
+
+I would have liked to have organized my tests a little better, but technical limitations made that
+difficult.
 
 # Extra credit
 
