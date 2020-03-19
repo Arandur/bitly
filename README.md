@@ -87,3 +87,4 @@ difficult.
 # Extra credit
 
 The number of unique visitors is included in the /stats endpoint.
+The app is deployed to http://bitly.arandur.me
